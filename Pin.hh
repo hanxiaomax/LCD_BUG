@@ -16,7 +16,7 @@ private:
 public:
 	Pin();
 	Pin(const AvrPort& port_in, uint8_t pin_index_in);
-  Pin(const Pin& other_pin);
+  	Pin(const Pin& other_pin);
 	bool isNull() const;
 	void setDirection(bool out) const;
 
