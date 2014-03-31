@@ -20,7 +20,7 @@
 
 // flags for display entry mode  显示输入模式标志？
 #define LCD_ENTRYRIGHT 0x00
-#define LCD_ENTRYLEFT 0x02
+#define LCD_ENTRYLEFT 0x02   //从左边进入？
 #define LCD_ENTRYSHIFTINCREMENT 0x01
 #define LCD_ENTRYSHIFTDECREMENT 0x00
 

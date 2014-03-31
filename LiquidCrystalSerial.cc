@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <util/delay.h>
+#include <util/delay.h> //AVR lib？
 
 // When the display powers up, it is configured as follows: 屏幕上电后按照如下方式配置	
 //
@@ -13,7 +13,7 @@
 //    N = 0; 1-line display 			  * N=0 1行显示
 //    F = 0; 5x8 dot character font 	  * F=0 5x8 点阵字符
 // 3. Display on/off control:        	3.显示开关控制
-//    D = 0; Display off 				  *D=0 显示关闭
+//    D = 0; Display off 				  *D=0 显示关闭下`
 //    C = 0; Cursor off 				  *C=0 光标关闭
 //    B = 0; Blinking off 				  *B=0 闪烁关闭
 // 4. Entry mode set:                	4.进入模式设置？
@@ -50,34 +50,38 @@ void LiquidCrystalSerial::init(Pin strobe, Pin data, Pin clk)//LCD初始化
  // begin(16, 1);  ？？？
 }
 
-void LiquidCrystalSerial::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) //开始显示？
+void LiquidCrystalSerial::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) //开始显示？//和原型不一样？
 {
-	if (lines > 1) 
+	if (lines > 1) //行数大于1
 	{
-		_displayfunction |= LCD_2LINE;
+		_displayfunction |= LCD_2LINE;//0x01|0x80=0x09 or 0x00|0x80=0x80 即获取一下最低位的值
 	}
-	_numlines = lines;
-	_numCols = cols;
+	_numlines = lines;//打印行数 还是起始位置？
+	_numCols = cols;//打印列数
 
 	// for some 1 line displays you can select a 10 pixel high font
-	if ((dotsize != 0) && (lines == 1)) {
-		_displayfunction |= LCD_5x10DOTS;
+	if ((dotsize != 0) && (lines == 1)) //1行显示且dotsize不为0--->why?
+	{
+		_displayfunction |= LCD_5x10DOTS;//使用5*10点阵，高度为10
 	}
 
-	// SEE PAGE 45/46 FOR INITIALIZATION SPECIFICATION!
-	// according to datasheet, we need at least 40ms after power rises above 2.7V
-	// before sending commands. Arduino can turn on way befer 4.5V so we'll wait 50
-	_delay_us(50000);
-	// Now we pull both RS and R/W low to begin commands
+	// SEE PAGE 45/46 FOR INITIALIZATION SPECIFICATION! 45/46查看初始化说明
+	// according to datasheet, we need at least 40ms after power rises above 2.7V 电压升高至2.7v需要至少40ms
+	// before sending commands. Arduino can turn on way befer 4.5V so we'll wait 50 传输指令前，我们等待50ms
+
+	_delay_us(50000);//延时50ms
+
+	// Now we pull both RS and R/W low to begin commands RS(数据/命令 H/L)=0 R/W(读/写 H/L)=0 准备写命令
 	writeSerial(0b00000000);
 	
-	//put the LCD into 4 bit or 8 bit mode
-	if (! (_displayfunction & LCD_8BITMODE)) {
+	//put the LCD into 4 bit or 8 bit mode 设置LCD为4位或8位模式
+	if (! (_displayfunction & LCD_8BITMODE)) //当_displayfunction不为0，且是8bit模式
+	{
 		// this is according to the hitachi HD44780 datasheet
 		// figure 24, pg 46
 
-		// we start in 8bit mode, try to set 4 bit mode
-		load(0x03 << 4);
+		// we start in 8bit mode, try to set 4 bit mode 尝试设置4bit模式
+		load(0x03 << 4);0x30=00110000
 		_delay_us(4500); // wait min 4.1ms
 
 		// second try
@@ -90,7 +94,9 @@ void LiquidCrystalSerial::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) //
 
 		// finally, set to 8-bit interface
 		load(0x02 << 4); 
-	} else {
+	} 
+	else 
+	{
 		// this is according to the hitachi HD44780 datasheet
 		// page 45 figure 23
 
@@ -109,19 +115,19 @@ void LiquidCrystalSerial::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) //
 	// finally, set # lines, font size, etc.
 	command(LCD_FUNCTIONSET | _displayfunction);  
 
-	// turn the display on with no cursor or blinking default
+	// turn the display on with no cursor or blinking default  打开显示，无光标，无闪烁
 	_displaycontrol = LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF;  
 	display();
 
-	// clear it off
+	// clear it off 清屏
 	clear();
 
-	// Initialize to default text direction (for romance languages)
+	// Initialize to default text direction (for romance languages) 初始化
 	_displaymode = LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT;
-	// set the entry mode
+	// set the entry mode  设置
 	command(LCD_ENTRYMODESET | _displaymode);
 		
-		// program special characters
+		// program special characters  ？
 		uint8_t right[] = {0,4,2,1,2,4,0,0};
 		uint8_t down[] = {0,0,0,0,0,0x11,0xA,4};
 		// write each character twice as sometimes there are signal issues
@@ -132,95 +138,107 @@ void LiquidCrystalSerial::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) //
 
 }
 
-/********** high level commands, for the user! */
-void LiquidCrystalSerial::clear()
+/********** high level commands, for the user! */ //面向用户的高级指令
+void LiquidCrystalSerial::clear()//清屏
 {
-	command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero
+	command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero 清屏，且光标位置归0
 	_delay_us(2000);  // this command takes a long time!
 }
 
 void LiquidCrystalSerial::home()
 {
-	command(LCD_RETURNHOME);  // set cursor position to zero
+	command(LCD_RETURNHOME);  // set cursor position to zero  光标位置清零=homing？
 	_delay_us(2000);  // this command takes a long time!
 }
 
-void LiquidCrystalSerial::setCursor(uint8_t col, uint8_t row)
+void LiquidCrystalSerial::setCursor(uint8_t col, uint8_t row) //设置光标
 {
-	int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 };
-	if ( row > _numlines ) {
-		row = _numlines-1;    // we count rows starting w/0
+	int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 };//row偏置
+	if ( row > _numlines ) 		//如果row位置大于显示行数
+	{
+		row = _numlines-1; 		// we count rows starting w/0 
 	}
 	
-	_xcursor = col; _ycursor = row;
+	_xcursor = col; _ycursor = row;//设置光标位置
 	command(LCD_SETDDRAMADDR | (col + row_offsets[row]));
 }
 
 //If col or row = -1, then the current position is retained
 //useful for controlling x when y is already positions, especially
 //within drawItem
+//如果col或者row=-1,那么就使用之前的值，而不使用-1
 void LiquidCrystalSerial::setCursorExt(int8_t col, int8_t row)
 {
-	setCursor((col == -1 ) ? _xcursor : col, (row == -1 ) ? _ycursor : row);
+	setCursor((col == -1 ) ? _xcursor : col, (row == -1 ) ? _ycursor : row);//按照以上逻辑重新设置光标位置
 }
 
-// Turn the display on/off (quickly)
-void LiquidCrystalSerial::noDisplay() {
+// Turn the display on/off (quickly) 开关屏幕，快速开关
+void LiquidCrystalSerial::noDisplay() 
+{
 	_displaycontrol &= ~LCD_DISPLAYON;
 	command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
-void LiquidCrystalSerial::display() {
+void LiquidCrystalSerial::display() 
+{
 	_displaycontrol |= LCD_DISPLAYON;
 	command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
 
-// Turns the underline cursor on/off
-void LiquidCrystalSerial::noCursor() {
+// Turns the underline cursor on/off 开关下划线光标
+void LiquidCrystalSerial::noCursor() 
+{
 	_displaycontrol &= ~LCD_CURSORON;
 	command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
-void LiquidCrystalSerial::cursor() {
+void LiquidCrystalSerial::cursor() 
+{
 	_displaycontrol |= LCD_CURSORON;
 	command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
 
-// Turn on and off the blinking cursor
-void LiquidCrystalSerial::noBlink() {
+// Turn on and off the blinking cursor 开关光标闪烁
+void LiquidCrystalSerial::noBlink() 
+{
 	_displaycontrol &= ~LCD_BLINKON;
 	command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
-void LiquidCrystalSerial::blink() {
+void LiquidCrystalSerial::blink() 
+{
 	_displaycontrol |= LCD_BLINKON;
 	command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
 
-// These commands scroll the display without changing the RAM
-void LiquidCrystalSerial::scrollDisplayLeft(void) {
+// These commands scroll the display without changing the RAM  卷屏
+void LiquidCrystalSerial::scrollDisplayLeft(void) 
+{
 	command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVELEFT);
 }
-void LiquidCrystalSerial::scrollDisplayRight(void) {
+void LiquidCrystalSerial::scrollDisplayRight(void) 
+{
 	command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVERIGHT);
 }
 
-// This is for text that flows Left to Right
-void LiquidCrystalSerial::leftToRight(void) {
+// This is for text that flows Left to Right  字符从左移动到右
+void LiquidCrystalSerial::leftToRight(void) 
+{
 	_displaymode |= LCD_ENTRYLEFT;
 	command(LCD_ENTRYMODESET | _displaymode);
 }
 
-// This is for text that flows Right to Left
-void LiquidCrystalSerial::rightToLeft(void) {
+// This is for text that flows Right to Left  字符从右移动到左
+void LiquidCrystalSerial::rightToLeft(void)
+{
 	_displaymode &= ~LCD_ENTRYLEFT;
 	command(LCD_ENTRYMODESET | _displaymode);
 }
 
-// This will 'right justify' text from the cursor
+// This will 'right justify' text from the cursor  右对齐
 void LiquidCrystalSerial::autoscroll(void) {
 	_displaymode |= LCD_ENTRYSHIFTINCREMENT;
 	command(LCD_ENTRYMODESET | _displaymode);
 }
 
-// This will 'left justify' text from the cursor
+// This will 'left justify' text from the cursor   左对齐
 void LiquidCrystalSerial::noAutoscroll(void) {
 	_displaymode &= ~LCD_ENTRYSHIFTINCREMENT;
 	command(LCD_ENTRYMODESET | _displaymode);
@@ -228,29 +246,33 @@ void LiquidCrystalSerial::noAutoscroll(void) {
 
 // Allows us to fill the first 8 CGRAM locations
 // with custom characters
-void LiquidCrystalSerial::createChar(uint8_t location, uint8_t charmap[]) {
-	location &= 0x7; // we only have 8 locations 0-7
-	command(LCD_SETCGRAMADDR | (location << 3));
-	for (int i=0; i<8; i++) {
+// 用自定义字符填充 CGRAM
+void LiquidCrystalSerial::createChar(uint8_t location, uint8_t charmap[]) 
+{
+	location &= 0x7; // we only have 8 locations 0-7  mask:00000100 把超过7的都过滤掉
+	command(LCD_SETCGRAMADDR | (location << 3));//？
+	for (int i=0; i<8; i++) 
+	{
 		write(charmap[i]);
 	}
 }
 
-/*********** mid level commands, for sending data/cmds */
+/*********** mid level commands, for sending data/cmds */ //面向通信的中间层指令
 
-inline void LiquidCrystalSerial::command(uint8_t value) {
+inline void LiquidCrystalSerial::command(uint8_t value) //内连函数 ：指令
+{
 	send(value, false);
 }
 
 inline void LiquidCrystalSerial::write(uint8_t value) {
 	send(value, true);
-	_xcursor++;
-	if(_xcursor >= _numCols)
-	setCursor(0,_ycursor+1);
+	_xcursor++;//光标x位置++
+	if(_xcursor >= _numCols)//当到达末端时
+	setCursor(0,_ycursor+1);//清零并换行
 }
 
-void LiquidCrystalSerial::writeInt(uint16_t value, uint8_t digits) {
-
+void LiquidCrystalSerial::writeInt(uint16_t value, uint8_t digits) 
+{
 	uint16_t currentDigit;
 	uint16_t nextDigit;
 
@@ -430,7 +452,8 @@ void LiquidCrystalSerial::pulseEnable(uint8_t value) {
 	_delay_us(1);   // commands need > 37us to settle [citation needed]
 }
 
-void LiquidCrystalSerial::writeSerial(uint8_t value) {
+void LiquidCrystalSerial::writeSerial(uint8_t value) 
+{
 	
 	int i;
 	
